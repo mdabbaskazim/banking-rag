@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-10-28 23:30:00.000000
 
 """
+
 from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
@@ -22,4 +23,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Baseline rollback."""
     pass
-

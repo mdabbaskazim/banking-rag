@@ -5,8 +5,8 @@
 | Phase | Description | Status | Completed Date |
 |---|---|---|---|
 | **0** | **Foundations, Quality Tools, Core Configuration & API Skeleton** | **COMPLETED** | 2026-10-29 |
-| 1 | API skeleton, database models, first migrations | Not Started | Pending Phase 0 approval |
-| 2 | Ingestion without LLM (Docling parse, table-safe chunking, dedupe) | Not Started | - |
+| **1** | **API skeleton, database models, first migrations** | **COMPLETED** | 2026-10-29 |
+| 2 | Ingestion without LLM (Docling parse, table-safe chunking, dedupe) | Not Started | Pending Phase 1 approval |
 | 3 | BGE-M3 embeddings, Qdrant collection, hybrid retrieval | Not Started | - |
 | 4 | Query graph happy path (gate, generate, render, rate limiter, fake LLM) | Not Started | - |
 | 5 | Verification (quote, numeric, entailment, retry routing) | Not Started | - |
@@ -22,43 +22,45 @@
 
 ### Completed Work
 
-- [x] **Project Packaging & Dependencies**:
-  - Configured `pyproject.toml` with runtime, development, and eval groups according to ARCHITECTURE.md Section 3.
-  - Generated and verified `uv.lock` with Python 3.12 (`76 packages resolved`).
-  - Configured build system using `hatchling` for editable wheel installation of `src/bankrag`.
-- [x] **Core Configuration (`src/bankrag/core/config.py`)**:
-  - Implemented `Settings` class with full validation for all ARCHITECTURE.md Section 11 parameters.
-  - Implemented cloud deployment validation (`validate_cloud_requirements`) and parsed `risky_topics_list`.
-  - Configured `.env` file loading with environment variable precedence.
-- [x] **Structured Logging (`src/bankrag/core/logging.py`)**:
-  - Implemented `structlog` configuration outputting JSON to stdout.
-  - Added recursive secret redaction for API keys, passwords, tokens, and credentials.
-  - Enforced Engineering Rule 10: User questions are automatically masked to SHA-256 hash (12 chars) and character length at INFO and below.
-- [x] **Core Errors & IDs (`src/bankrag/core/errors.py`, `src/bankrag/core/ids.py`)**:
-  - Built typed exception hierarchy: `BankRagError`, `ConfigurationError`, `ProviderError`, `RateLimitExceededError`, `CircuitBreakerOpenError`, `DatabaseError`, `VectorStoreError`, `VerificationError`, `ServiceUnavailableError`.
-  - Implemented deterministic chunk ID generation using UUID5 under a fixed namespace: `uuid5(BANKRAG_CHUNK_NAMESPACE, f"{doc_id}:{version}:{chunk_index}")`.
-  - Implemented UUID4 thread ID and SHA-256 content hashing helpers.
-- [x] **Provider Interfaces & Fakes (`src/bankrag/providers/`)**:
-  - Defined provider abstractions: `LLMProvider`, `VectorStoreProvider`, `RateLimiterProvider`, `EmbeddingProvider`, `EntailmentProvider`.
-  - Implemented zero-credential in-memory test fakes: `FakeLLMProvider`, `FakeVectorStoreProvider`, `FakeRateLimiterProvider`.
-- [x] **FastAPI Application & Endpoints (`src/bankrag/api/`)**:
-  - `GET /health`: Liveness probe performing zero I/O and no external dependencies.
-  - `GET /ready`: On-demand readiness probe checking Neon Postgres and Qdrant connectivity with accurate failure reporting.
-  - Structured lifespan logger reporting startup and graceful shutdown.
-- [x] **Alembic Baseline Migration (`alembic.ini`, `migrations/`)**:
-  - Configured `alembic.ini` and `migrations/env.py` loading database connection from `Settings`.
-  - Created baseline revision `0000_baseline.py` without premature Phase 1 tables.
-- [x] **Gemini Smoke Test Script (`scripts/smoke_llm.py`)**:
-  - Implemented smoke test using official `google-genai` SDK and configurable `--model`.
-  - Validates native structured output using Pydantic schema `BankingSmokeResponse`.
-  - Reports actual API status without fabricating success; cleanly exits with code 1 if credentials are missing or call fails.
-- [x] **Quality Tooling & CI (`.github/workflows/ci.yml`, `poe check`)**:
-  - Configured Poe the Poet tasks: `lint`, `format-check`, `format`, `types`, `test`, `check`, `dev`.
-  - Configured `.pre-commit-config.yaml` with Ruff and file hygiene hooks.
-  - Configured GitHub Actions workflow `ci.yml` running on Python 3.12 with `uv`.
-- [x] **Documentation**:
-  - Updated `README.md` with Windows PowerShell setup, quality check commands, and local API instructions.
-  - Provided `.env.example` with safe placeholder configuration.
+- [x] **Project Packaging & Dependencies**: Configured `pyproject.toml` and verified `uv.lock` with Python 3.12 (`76 packages resolved`).
+- [x] **Core Configuration (`src/bankrag/core/config.py`)**: `Settings` class with full Section 11 parameters, cloud credential validation, and topic parsing.
+- [x] **Structured Logging (`src/bankrag/core/logging.py`)**: Structured JSON logging to stdout with automated secret redaction and Rule 10 question anonymization.
+- [x] **Core Errors & IDs (`src/bankrag/core/errors.py`, `src/bankrag/core/ids.py`)**: Typed exceptions and deterministic UUID5 chunk ID generation.
+- [x] **Provider Interfaces & Fakes (`src/bankrag/providers/`)**: `LLMProvider`, `VectorStoreProvider`, `RateLimiterProvider` and in-memory fakes.
+- [x] **FastAPI Application & Endpoints (`src/bankrag/api/`)**: `/health` (zero I/O) and `/ready` probes.
+- [x] **Alembic Baseline Migration**: `0000_baseline.py` initial revision.
+- [x] **Gemini Smoke Test Script**: `scripts/smoke_llm.py` structured output test.
+
+---
+
+## Phase 1: Database Models & Migrations
+
+### Completed Work
+
+- [x] **SQLAlchemy 2.0 Database Models (`src/bankrag/db/models.py`)**:
+  - `documents`: Metadata, versioning, status (`pending`, `active`, `superseded`, `rejected`), unique `content_hash`, indexes.
+  - `chunks`: Table-safe chunk text, deterministic UUID5 primary key, foreign key to `documents.id` with `CASCADE`, `content_hash`.
+  - `query_runs`: Execution run tracking, status (`running`, `answered`, `abstained`, `awaiting_review`, `awaiting_retry`, `failed`), `answer` (JSON), `provenance`, and unique `idempotency_key`.
+  - `review_tasks`: Human-in-the-loop task queue (`ingest_approval`, `answer_review`), status (`open`, `resolved`), reason, payload, and decision tracking.
+  - `audit_log`: Append-only audit trail capturing chronological events, actors, and JSON payloads.
+- [x] **Database Session Management (`src/bankrag/db/session.py`)**:
+  - Implemented `get_engine`, `get_session_factory`, and `get_db_session` dependency.
+  - Added connection pool pre-ping (`pool_pre_ping=True`) for Neon scale-to-zero cold-start safety.
+  - Clean URL normalization with PostgreSQL psycopg driver support.
+- [x] **Data Access Repositories (`src/bankrag/db/repositories.py`)**:
+  - `DocumentRepository`: Create, retrieve by ID / content hash, latest active version lookup, status update, and chunk batching.
+  - `QueryRunRepository`: Idempotency handling (`create_or_get`), status updates, provenance, and final answer storage.
+  - `ReviewTaskRepository`: Task creation, open task listings (filtered by kind), and resolution recording.
+  - `AuditLogRepository`: Append-only audit logging and thread-level event history.
+- [x] **Alembic Migration Setup & Live Verification (`migrations/`)**:
+  - Updated `migrations/env.py` to link `Base.metadata`.
+  - Created migration revision `0001_phase1_tables.py` generating all 5 tables, foreign keys, and indexes.
+  - Verified static SQL generation via `alembic upgrade head --sql`.
+  - Applied migration to Neon database: upgraded `0000_baseline` -> `0001_phase1_tables (head)`.
+  - Verified live tables on Neon: `alembic_version`, `documents`, `chunks`, `query_runs`, `review_tasks`, `audit_log`.
+- [x] **Focused Offline Tests (`tests/unit/`)**:
+  - `tests/unit/test_db_models.py`: Structural, column, nullability, unique constraint, and relationship verification.
+  - `tests/unit/test_repositories.py`: Complete mock-based verification of repository methods and idempotency.
 
 ---
 
@@ -66,34 +68,31 @@
 
 | Tool / Check | Command | Result | Notes |
 |---|---|---|---|
-| Dependency Lock | `uv lock` | **PASSED** | 76 packages resolved in `uv.lock` |
-| Dependency Sync | `uv sync --dev` | **PASSED** | Installed into `.venv` using Python 3.12.14 |
-| Code Linting | `ruff check src tests scripts` | **PASSED** | 0 errors |
-| Code Formatting | `ruff format --check src tests scripts` | **PASSED** | 24 files properly formatted |
+| Code Linting | `ruff check src tests migrations scripts` | **PASSED** | 0 errors |
+| Code Formatting | `ruff format --check src tests migrations scripts` | **PASSED** | 33 files formatted |
 | Static Type Check | `pyright` | **PASSED** | 0 errors, 0 warnings |
-| Unit Test Suite | `pytest` | **PASSED** | 24/24 tests passed in 0.28s |
-| Composite Quality | `poe check` | **PASSED** | Executed lint, format-check, types, and test successfully |
-| Liveness Probe | `GET /health` | **PASSED** | HTTP 200, `{"status": "ok", "app_env": "local", "version": "0.1.0"}` |
-| Readiness Probe | `GET /ready` | **PASSED** | HTTP 503, accurately reporting unconfigured Postgres & Qdrant |
-| Smoke Script | `python scripts/smoke_llm.py` | **PASSED (Handled)** | Exited with code 1 and reported missing `GEMINI_API_KEY` |
+| Unit Test Suite | `pytest` | **PASSED** | 37/37 tests passed in 0.60s |
+| Composite Quality | `poe check` | **PASSED** | All quality checks passed |
+| Alembic Static SQL | `alembic upgrade head --sql` | **PASSED** | Generated DDL for all 5 tables offline |
+| Neon Migration | `alembic upgrade head` | **PASSED** | Successfully applied to Neon `0001_phase1_tables (head)` |
+| Neon Schema Inspection | Database Inspector | **PASSED** | Verified all 5 tables, PKs, FKs, and indexes in Neon |
+| DB Readiness Probe | `check_database_health()` | **PASSED** | Verified live connection returns `status: healthy` |
 
 ---
 
-## Windows & Environment Notes
+## Windows & Free-Tier Safety Notes
 
-1. **Windows Sandbox Socket Restrictions**:
-   - Python's standard `asyncio` event loop uses loopback sockets/pipes for IPC. Inside Windows sandboxed command execution where loopback network is restricted, commands initiating async event loops require standard execution or bypass permissions.
-2. **Neon & Qdrant Free Tier Safety**:
-   - `/health` does zero I/O to avoid waking Neon compute or consuming quotas.
-   - `/ready` only attempts database / vector store checks on demand with a 3-second timeout and NullPool / connection disposal.
+1. **Zero Cloud Dependency in Tests**: Unit tests run 100% offline with zero Neon credentials needed.
+2. **Neon Connection Safety**: Direct connection used with `connect_timeout=3` and threadpool execution to prevent Windows Proactor event loop conflicts.
+3. **Local PDF Isolation**: Local banking PDFs in `Bank_pdf/` remain local and unmodified.
 
 ---
 
 ## Next Phase
 
-**Phase 1: API Skeleton, Database Models & First Migrations**
-- Implement SQLAlchemy database models: `documents`, `chunks`, `query_runs`, `review_tasks`, `audit_log`.
-- Generate and verify Alembic migrations against Neon Postgres `dev` branch.
-- Implement database session management with connection pool pre-ping.
-- Implement repository layer and repository unit/integration tests.
-
+**Phase 2: Ingestion without LLM**
+- Docling-based PDF parsing with table preservation.
+- Chunking strategy preserving table structure and section headers.
+- Deduplication via content hashing.
+- Batch storage of documents and chunks into Postgres.
+- CLI script for folder ingestion (`scripts/ingest_folder.py`).

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     """Central configuration class for Banking RAG."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

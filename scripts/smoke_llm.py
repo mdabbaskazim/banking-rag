@@ -20,7 +20,11 @@ class BankingSmokeResponse(BaseModel):
 
     domain: str = Field(description="Domain name, e.g. Retail Banking")
     claim: str = Field(description="A factual statement about banking regulations")
-    confidence: float = Field(ge=0.0, le=1.0, description="Confidence score between 0.0 and 1.0",)
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Confidence score between 0.0 and 1.0",
+    )
 
 
 def run_smoke_test(model_id: str | None = None) -> int:

@@ -1,6 +1,6 @@
 # Banking RAG: Architecture
 
-Version 1.0. Status: approved design, nothing built yet.
+Version 1.0. Status: approved design, Phases 0 and 1 built.
 
 > **For AI coding agents:** read section 1 (rules), the section for the phase you were given, and `PROGRESS.md`. Do not read the whole repo. Implement only the phase you were given. Ask before adding any dependency not listed in section 3.
 

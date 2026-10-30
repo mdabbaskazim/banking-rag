@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **0** | **Foundations, Quality Tools, Core Configuration & API Skeleton** | **COMPLETED** | 2026-10-29 |
 | **1** | **API skeleton, database models, first migrations** | **COMPLETED** | 2026-10-29 |
-| 2 | Ingestion without LLM (Docling parse, table-safe chunking, dedupe) | Not Started | Pending Phase 1 approval |
+| 2 | Ingestion without LLM (Docling parse, table-safe chunking, dedupe) | Ready to Start | - |
 | 3 | BGE-M3 embeddings, Qdrant collection, hybrid retrieval | Not Started | - |
 | 4 | Query graph happy path (gate, generate, render, rate limiter, fake LLM) | Not Started | - |
 | 5 | Verification (quote, numeric, entailment, retry routing) | Not Started | - |
@@ -29,7 +29,15 @@
 - [x] **Provider Interfaces & Fakes (`src/bankrag/providers/`)**: `LLMProvider`, `VectorStoreProvider`, `RateLimiterProvider` and in-memory fakes.
 - [x] **FastAPI Application & Endpoints (`src/bankrag/api/`)**: `/health` (zero I/O) and `/ready` probes.
 - [x] **Alembic Baseline Migration**: `0000_baseline.py` initial revision.
-- [x] **Gemini Smoke Test Script**: `scripts/smoke_llm.py` structured output test.
+- [x] **Gemma 4 LLM Compatibility Verification**:
+  - Provider: Google Gemini API.
+  - Model: `gemma-4-26b-a4b-it`.
+  - SDK: `google-genai` (updated).
+  - Basic text generation: PASSED.
+  - Native structured JSON output: PASSED.
+  - Pydantic schema validation: PASSED.
+  - Smoke test latency: 2.48 seconds.
+  - Earlier HTTP 500 errors are no longer reproducible after the SDK update.
 
 ---
 
@@ -77,6 +85,9 @@
 | Neon Migration | `alembic upgrade head` | **PASSED** | Successfully applied to Neon `0001_phase1_tables (head)` |
 | Neon Schema Inspection | Database Inspector | **PASSED** | Verified all 5 tables, PKs, FKs, and indexes in Neon |
 | DB Readiness Probe | `check_database_health()` | **PASSED** | Verified live connection returns `status: healthy` |
+| Gemma Basic Generation | `uv run python scripts/test_gemma_basic.py` | **PASSED** | Successfully generated banking-related text |
+| Gemma Structured Output | `uv run python scripts/smoke_llm.py` | **PASSED** | Native JSON schema response successfully generated |
+| Pydantic Validation | `BankingSmokeResponse.model_validate_json()` | **PASSED** | All required fields validated successfully |
 
 ---
 
@@ -96,3 +107,15 @@
 - Deduplication via content hashing.
 - Batch storage of documents and chunks into Postgres.
 - CLI script for folder ingestion (`scripts/ingest_folder.py`).
+
+
+## Questions and Answers
+
+- **Question 1 – Does Gemma support native structured output?**
+  Resolved: YES. `gemma-4-26b-a4b-it` successfully returned structured JSON using the configured response schema, and Pydantic validation passed in `scripts/smoke_llm.py`. This verifies the schema used by the smoke test, not every JSON Schema feature.
+
+- **Question 2 – What is the exact model ID?**
+  Resolved: `gemma-4-26b-a4b-it`. This is the exact model ID used successfully in the smoke test.
+
+- **Question 4 – What is Neon’s minimum compute size?**
+  Resolved: 0.25 CU is the minimum active compute size used in the planned configuration. The development branch should use a 0.25 CU minimum and scale to zero when inactive, subject to the settings available in the Neon dashboard.

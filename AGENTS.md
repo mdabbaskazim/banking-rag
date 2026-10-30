@@ -65,6 +65,8 @@
 - Do not perform destructive database operations without explicit approval.
 - Confirm the database target is a development environment before applying migrations.
 - Never claim a cloud operation succeeded without verifying the result.
+- Do not call the real LLM, Qdrant Cloud or Neon unless the prompt asks for it, and state how many real calls were made.
+- Prefer one real call over a loop. Never retry a failing cloud call more than twice.
 
 ## 7. Local Banking PDFs
 
